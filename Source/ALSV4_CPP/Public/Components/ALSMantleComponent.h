@@ -27,7 +27,7 @@ public:
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Mantle System")
-	bool MantleCheck(const FALSMantleTraceSettings& TraceSettings,
+	virtual bool MantleCheck(const FALSMantleTraceSettings& TraceSettings,
 	                 EDrawDebugTrace::Type DebugType = EDrawDebugTrace::Type::None);
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Mantle System")
@@ -35,6 +35,9 @@ public:
 	                EALSMantleType MantleType);
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Mantle System")
+	bool TryToMantle();
+
+	UFUNCTION()
 	void MantleUpdate(float BlendIn);
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Mantle System")
@@ -64,6 +67,12 @@ protected:
 	                           EALSMantleType MantleType);
 
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bDebug = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bCheckMantleOnTick = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ALS|Mantle System")
 	UTimelineComponent* MantleTimeline = nullptr;
 
@@ -98,7 +107,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ALS|Mantle System")
 	float AcceptableVelocityWhileMantling = 10.0f;
 
-private:
+protected:
 	UPROPERTY()
 	AALSBaseCharacter* OwnerCharacter;
 };

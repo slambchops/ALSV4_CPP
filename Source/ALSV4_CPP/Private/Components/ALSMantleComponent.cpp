@@ -11,6 +11,7 @@
 #include "Character/ALSCharacter.h"
 #include "Character/Animation/ALSCharacterAnimInstance.h"
 #include "Curves/CurveVector.h"
+#include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Library/ALSMathLibrary.h"
@@ -58,7 +59,7 @@ void UALSMantleComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (OwnerCharacter->GetMovementState() == EALSMovementState::InAir)
+	if (OwnerCharacter->GetMovementState() == EALSMovementState::InAir && bCheckMantleOnTick)
 	{
 		// Perform a mantle check if falling while movement input is pressed.
 		if (OwnerCharacter->HasMovementInput())
@@ -148,10 +149,18 @@ bool UALSMantleComponent::MantleCheck(const FALSMantleTraceSettings& TraceSettin
 		return false;
 	}
 
-	// Step 1: Trace forward to find a wall / object the character cannot walk on.
-	const FVector& TraceDirection = OwnerCharacter->HasMovementInput()
-		                                ? OwnerCharacter->GetPlayerMovementInput()
-		                                : OwnerCharacter->GetActorForwardVector();
+	const bool bIsAI = !OwnerCharacter->IsPlayerControlled();
+
+	 // Step 1: Trace forward to find a wall / object the character cannot walk on.
+	FVector TraceDirection = OwnerCharacter->HasMovementInput()
+		? OwnerCharacter->GetPlayerMovementInput()
+		: OwnerCharacter->GetActorForwardVector();
+
+	if (TraceDirection.IsNearlyZero(0.5f) && bIsAI)
+	{
+		TraceDirection = OwnerCharacter->GetControlRotation().Vector();
+	}
+
 	const FVector& CapsuleBaseLocation = UALSMathLibrary::GetCapsuleBaseLocation(
 		2.0f, OwnerCharacter->GetCapsuleComponent());
 	FVector TraceStart = CapsuleBaseLocation + TraceDirection * -30.0f;
@@ -168,6 +177,12 @@ bool UALSMantleComponent::MantleCheck(const FALSMantleTraceSettings& TraceSettin
 	FHitResult HitResult;
 	World->SweepSingleByProfile(HitResult, TraceStart, TraceEnd, FQuat::Identity, FName(TEXT("IgnoreOnlyPawn")),
 	                            FCollisionShape::MakeCapsule(TraceSettings.ForwardTraceRadius, HalfHeight), Params);
+
+	if (bDebug)
+	{
+		DrawDebugSphere(World, TraceStart, 15.0f, 16, FColor::Blue, false, 2.0f);
+		DrawDebugSphere(World, HitResult.ImpactPoint, 15.0f, 16, FColor::Yellow, false, 2.0f);
+	}
 
 	if (!HitResult.IsValidBlockingHit() || OwnerCharacter->GetCharacterMovement()->IsWalkable(HitResult))
 	{
@@ -199,11 +214,16 @@ bool UALSMantleComponent::MantleCheck(const FALSMantleTraceSettings& TraceSettin
 	                            ECC_GameTraceChannel2, FCollisionShape::MakeSphere(TraceSettings.DownwardTraceRadius),
 	                            Params);
 
+	if (bDebug)
+	{
+		DrawDebugSphere(World, DownwardTraceStart, 15.0f, 16, FColor::Blue, false, 2.0f);
+		DrawDebugSphere(World, HitResult.ImpactPoint, 15.0f, 16, FColor::Yellow, false, 2.0f);
+	}
 
 	if (!OwnerCharacter->GetCharacterMovement()->IsWalkable(HitResult))
 	{
 		// Not a valid surface to mantle
-		return false;
+		if (!bIsAI) return false;
 	}
 
 	const FVector DownTraceLocation(HitResult.Location.X, HitResult.Location.Y, HitResult.ImpactPoint.Z);
@@ -220,7 +240,7 @@ bool UALSMantleComponent::MantleCheck(const FALSMantleTraceSettings& TraceSettin
 	if (!bCapsuleHasRoom)
 	{
 		// Capsule doesn't have enough room to mantle
-		return false;
+		if (!bIsAI) return false;
 	}
 
 	const FTransform TargetTransform(
@@ -379,4 +399,26 @@ void UALSMantleComponent::OnOwnerRagdollStateChanged(bool bRagdollState)
 	{
 		MantleTimeline->Stop();
 	}
+}
+
+bool UALSMantleComponent::TryToMantle()
+{
+	bool bRetVal = false;
+
+	if (OwnerCharacter && OwnerCharacter->GetMovementAction() == EALSMovementAction::None)
+	{
+		if (OwnerCharacter->GetMovementState() == EALSMovementState::Grounded)
+		{
+			if (OwnerCharacter->HasMovementInput() || !OwnerCharacter->IsPlayerControlled())
+			{
+				bRetVal = MantleCheck(GroundedTraceSettings, EDrawDebugTrace::Persistent);
+			}
+		}
+		else if (OwnerCharacter->GetMovementState() == EALSMovementState::InAir)
+		{
+			bRetVal = MantleCheck(FallingTraceSettings, EDrawDebugTrace::Persistent);
+		}
+	}
+
+	return bRetVal;
 }

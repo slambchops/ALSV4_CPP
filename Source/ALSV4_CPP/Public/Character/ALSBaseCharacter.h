@@ -137,7 +137,7 @@ public:
 	/** Landed, Jumped, Rolling, Mantling and Ragdoll*/
 	/** On Landed*/
 	UFUNCTION(BlueprintCallable, Category = "ALS|Character States")
-	void EventOnLanded();
+	virtual void EventOnLanded();
 
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "ALS|Character States")
 	void Multicast_OnLanded();
@@ -193,7 +193,7 @@ public:
 	void Server_SetDesiredStance(EALSStance NewStance);
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Character States")
-	void SetDesiredGait(EALSGait NewGait);
+	virtual void SetDesiredGait(EALSGait NewGait);
 
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "ALS|Character States")
 	void Server_SetDesiredGait(EALSGait NewGait);
@@ -229,11 +229,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ALS|Movement System")
 	EALSGait GetAllowedGait() const;
 
-	UFUNCTION(BlueprintCallable, Category = "ALS|Movement System")
-	EALSGait GetActualGait(EALSGait AllowedGait) const;
+	UFUNCTION(BlueprintCallable, Category = "ALS|Movement States")
+	virtual EALSGait GetActualGait(EALSGait AllowedGait) const;
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Movement System")
-	bool CanSprint() const;
+	virtual bool CanSprint() const;
 
 	/** BP implementable function that called when Breakfall starts */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ALS|Movement System")
@@ -286,7 +286,7 @@ public:
 	FVector GetAcceleration() const { return Acceleration; }
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Essential Information")
-	void SetAcceleration(const FVector& NewAcceleration);
+	virtual void SetAcceleration(const FVector& NewAcceleration);
 
 	UFUNCTION(BlueprintGetter, Category = "ALS|Essential Information")
 	bool IsMoving() const { return bIsMoving; }
@@ -326,7 +326,7 @@ protected:
 
 	void RagdollUpdate(float DeltaTime);
 
-	void SetActorLocationDuringRagdoll(float DeltaTime);
+	virtual void SetActorLocationDuringRagdoll(float DeltaTime);
 
 	/** State Changes */
 
@@ -358,7 +358,7 @@ protected:
 
 	void SetEssentialValues(float DeltaTime);
 
-	void UpdateCharacterMovement();
+	virtual void UpdateCharacterMovement();
 
 	void UpdateGroundedRotation(float DeltaTime);
 
@@ -625,4 +625,9 @@ protected:
 
 	/** We won't use curve based movement and a few other features on networked games */
 	bool bEnableNetworkOptimizations = false;
+
+public:
+	// OGB Addition: allow custom footstep sounds to be passed through
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "ALS|Audio")
+	bool GetFootstepSound(class USoundBase* &Sound, FName &AttachPoint);
 };
